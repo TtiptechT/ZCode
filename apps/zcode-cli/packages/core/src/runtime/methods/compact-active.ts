@@ -16,7 +16,7 @@ import {
   createCompactBoundaryId,
   getUsageTotalTokens,
 } from "../deps.js";
-import type { SessionEvent, TraceContext } from "../deps.js";
+import type { HookRunResult, SessionEvent, TraceContext } from "../deps.js";
 import { resolveModelRequestSessionTypeFromTaskType } from "./model-request-session-type.js";
 import {
   defaultCompactPhaseForTrigger,
@@ -139,6 +139,21 @@ export async function compactActiveConversation(
   });
 }
 
+// PreCompact hook 的 additionalContext 并入 compact summary prompt 的
+// Additional Instructions 块；无 hook 上下文时保持用户原始指令不变。
+function composePreCompactHookInstructions(
+  customInstructions: string | undefined,
+  additionalContexts: readonly string[],
+): string | undefined {
+  if (additionalContexts.length === 0) return customInstructions;
+  const hookContextBlock = `PreCompact hook context:\n${additionalContexts
+    .map((context, index) => `#${index + 1}\n${context}`)
+    .join("\n\n")}`;
+  return customInstructions?.trim()
+    ? `${customInstructions}\n\n${hookContextBlock}`
+    : hookContextBlock;
+}
+
 async function compactActiveConversationImpl(
   this: AgentRuntimeInternal,
   customInstructions: string | undefined,
@@ -237,6 +252,51 @@ async function compactActiveConversationImpl(
     };
   }
 
+  // PreCompact hook：确认要压缩后、CompactStarted 持久化前运行。
+  // hook 执行失败不阻断 compact（压缩是恢复手段），仅记日志继续；
+  // decision:block 则按健康 skip 处理，不暴露成系统故障。
+  let preCompactHookResult: HookRunResult = { additionalContexts: [] };
+  try {
+    preCompactHookResult = await this.runPreCompactHooks(
+      trigger,
+      customInstructions,
+      turnTraceContext,
+      options.abortSignal,
+    );
+  } catch (error) {
+    this.logger?.warn("PreCompact hook failed; continuing compact", {
+      ...traceContextToLogContext(turnTraceContext),
+      errorMessage: error instanceof Error ? error.message : String(error),
+      event: "compact.pre_compact_hook.failed",
+      module: "core.runtime",
+      trigger,
+    });
+  }
+  if (preCompactHookResult.blockRequested) {
+    const blockedPayload = this.buildCompactTimelinePayload(compactTimeline, {
+      endedAt: Date.now(),
+      reason: "pre_compact_hook_block",
+      replace: true,
+      status: CompactTimelineStatus.Skipped,
+      ...(preCompactHookResult.stopReason ? { text: preCompactHookResult.stopReason } : {}),
+    });
+    await persistCompactTimelineEvent(
+      this,
+      SessionEventType.CompactCompleted,
+      blockedPayload,
+      turnTraceContext,
+      events,
+    );
+    return {
+      displayText: preCompactHookResult.stopReason
+        ? `Compact skipped by PreCompact hook: ${preCompactHookResult.stopReason}`
+        : "Compact skipped by PreCompact hook",
+      entries: activeEntries,
+      outcome: "skipped",
+      tokenCount: preCompactTokenCount,
+    };
+  }
+
   const compactStartedPayload = this.buildCompactTimelinePayload(compactTimeline, {
     ...(maxAttempts > 1 ? { attempt, maxAttempts } : {}),
     status: CompactTimelineStatus.Started,
@@ -265,7 +325,12 @@ async function compactActiveConversationImpl(
           querySource: "compact",
         },
       });
-      const compactPrompt = buildCompactPrompt(customInstructions);
+      const compactPrompt = buildCompactPrompt(
+        composePreCompactHookInstructions(
+          customInstructions,
+          preCompactHookResult.additionalContexts,
+        ),
+      );
       let result: RuntimeModelTextResult;
       let compactPromptTooLongAttempts = 0;
       let stripMediaForSummary = false;

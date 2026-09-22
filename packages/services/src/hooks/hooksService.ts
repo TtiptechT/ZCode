@@ -41,6 +41,7 @@ const HOOK_EVENTS: readonly HookEvent[] = [
   "PostToolUse",
   "PostToolUseFailure",
   "Stop",
+  "PreCompact",
 ];
 
 interface ZCodeConfigFile {

@@ -3,6 +3,7 @@ import type { ModelToolSideEffectScope } from "../model/index.js";
 import type { CollaborationMode, RiskLevel } from "../interfaces/session.port.js";
 import type { PermissionUpdate } from "../interfaces/permission.port.js";
 import type { SessionId, ToolCallId, TraceId, TurnId } from "../interfaces/shared.js";
+import type { CompactTrigger } from "../compact/index.js";
 
 export const HookEventName = {
   SessionStart: "SessionStart",
@@ -12,6 +13,7 @@ export const HookEventName = {
   PostToolUse: "PostToolUse",
   PostToolUseFailure: "PostToolUseFailure",
   Stop: "Stop",
+  PreCompact: "PreCompact",
 } as const;
 
 export type HookEventName = (typeof HookEventName)[keyof typeof HookEventName];
@@ -138,6 +140,13 @@ export interface StopHookInput extends BaseHookInput {
   toolCallCount: number;
 }
 
+export interface PreCompactHookInput extends BaseHookInput {
+  customInstructions?: string;
+  hookEventName: typeof HookEventName.PreCompact;
+  /** manual | auto | partial | reactive | session_memory；matcher 按该值匹配。 */
+  trigger: CompactTrigger;
+}
+
 export type HookInput =
   | PreToolUseHookInput
   | PermissionRequestHookInput
@@ -145,7 +154,8 @@ export type HookInput =
   | PostToolUseFailureHookInput
   | UserPromptSubmitHookInput
   | SessionStartHookInput
-  | StopHookInput;
+  | StopHookInput
+  | PreCompactHookInput;
 
 export type PermissionRequestHookDecision =
   | {
@@ -191,6 +201,10 @@ export type HookSpecificOutput =
   | {
       additionalContext?: string;
       hookEventName: typeof HookEventName.Stop;
+    }
+  | {
+      additionalContext?: string;
+      hookEventName: typeof HookEventName.PreCompact;
     };
 
 export interface HookJSONOutput {
@@ -276,6 +290,10 @@ export const HookSpecificOutputSchema = z.discriminatedUnion("hookEventName", [
   z.object({
     additionalContext: z.string().optional(),
     hookEventName: z.literal(HookEventName.Stop),
+  }),
+  z.object({
+    additionalContext: z.string().optional(),
+    hookEventName: z.literal(HookEventName.PreCompact),
   }),
 ]);
 
@@ -417,6 +435,7 @@ export const HooksRuntimeConfigPatchSchema = z.object({
       PostToolUse: z.array(HookMatcherConfigSchema).optional(),
       PostToolUseFailure: z.array(HookMatcherConfigSchema).optional(),
       Stop: z.array(HookMatcherConfigSchema).optional(),
+      PreCompact: z.array(HookMatcherConfigSchema).optional(),
     })
     .strict()
     .optional(),

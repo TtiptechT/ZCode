@@ -40,6 +40,7 @@ const HOOK_EVENTS: HookEvent[] = [
   "PostToolUse",
   "PostToolUseFailure",
   "Stop",
+  "PreCompact",
 ];
 
 function formatCustomJson(custom?: Record<string, unknown>): string {

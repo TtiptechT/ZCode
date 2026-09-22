@@ -1,5 +1,11 @@
 import { HookEventName } from "../deps.js";
-import type { HookRunResult, Model, TraceContext, TurnState } from "../deps.js";
+import type {
+  CompactTrigger,
+  HookRunResult,
+  Model,
+  TraceContext,
+  TurnState,
+} from "../deps.js";
 import type { HookEventName as HookEventNameType } from "@zcode/contracts";
 import type { AgentRuntimeInternal } from "../internal.js";
 import {
@@ -100,6 +106,32 @@ export async function runStopHooks(
       turnId: traceContext.turnId,
     },
     { signal },
+  );
+}
+
+export async function runPreCompactHooks(
+  this: AgentRuntimeInternal,
+  trigger: CompactTrigger,
+  customInstructions: string | undefined,
+  traceContext: TraceContext,
+  signal?: AbortSignal,
+): Promise<HookRunResult> {
+  if (!this.hookRunner) return EMPTY_HOOK_RESULT;
+
+  return this.hookRunner.run(
+    {
+      agentName: this.config.agentName,
+      cwd: this.workingDirectory,
+      customInstructions,
+      hookEventName: HookEventName.PreCompact,
+      mode: this.getMode(),
+      sessionId: this.sessionId,
+      timestamp: new Date().toISOString(),
+      traceId: traceContext.traceId,
+      trigger,
+      turnId: traceContext.turnId,
+    },
+    { matchValue: trigger, signal },
   );
 }
 

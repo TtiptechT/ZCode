@@ -313,6 +313,7 @@ export const hookInvocationRowSchema = z.object({
     "PostToolUse",
     "PostToolUseFailure",
     "Stop",
+    "PreCompact",
   ]),
   hookCount: z.number().int().positive(),
   state: z.enum(["running", "completed", "failed"]),

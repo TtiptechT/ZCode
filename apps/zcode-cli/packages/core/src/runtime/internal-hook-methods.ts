@@ -1,4 +1,4 @@
-import type { HookRunResult, Model, TraceContext, TurnState } from "./deps.js";
+import type { CompactTrigger, HookRunResult, Model, TraceContext, TurnState } from "./deps.js";
 import type { HookEventName } from "@zcode/contracts";
 import type { RuntimeMessageEntry } from "../agent/message-history.js";
 
@@ -23,6 +23,12 @@ export interface AgentRuntimeHookMethods {
     traceContext: TraceContext,
     signal?: AbortSignal,
     stopHookActive?: boolean,
+  ): Promise<HookRunResult>;
+  runPreCompactHooks(
+    trigger: CompactTrigger,
+    customInstructions: string | undefined,
+    traceContext: TraceContext,
+    signal?: AbortSignal,
   ): Promise<HookRunResult>;
   injectHookAdditionalContextIntoMessageHistory(
     eventName: HookEventName,

@@ -57,6 +57,10 @@ export async function createCompatibleHookStdin(input: HookInput): Promise<{
     case HookEventName.UserPromptSubmit:
     case HookEventName.PreToolUse:
       break;
+    case HookEventName.PreCompact:
+      compatible.trigger = input.trigger;
+      compatible.custom_instructions = input.customInstructions;
+      break;
   }
 
   return {

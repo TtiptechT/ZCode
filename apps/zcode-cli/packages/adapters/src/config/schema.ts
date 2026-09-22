@@ -277,6 +277,7 @@ const hooksSchema = z
         PostToolUse: z.array(hookMatcherSchema).optional(),
         PostToolUseFailure: z.array(hookMatcherSchema).optional(),
         Stop: z.array(hookMatcherSchema).optional(),
+        PreCompact: z.array(hookMatcherSchema).optional(),
       })
       .strict()
       .optional(),

@@ -19,7 +19,7 @@ import { z } from "zod";
 
 export const WORKSPACE_HOOK_TRUST_STORE_SCHEMA_VERSION = 1 as const;
 
-/** 与 contracts 的 workspaceHookEventNameSchema 保持一致（7 个现有事件）。 */
+/** 与 contracts 的 workspaceHookEventNameSchema 保持一致（8 个现有事件）。 */
 const workspaceHookEventNameSchema = z.enum([
   "SessionStart",
   "UserPromptSubmit",
@@ -28,6 +28,7 @@ const workspaceHookEventNameSchema = z.enum([
   "PostToolUse",
   "PostToolUseFailure",
   "Stop",
+  "PreCompact",
 ]);
 
 const nonEmptyStringSchema = z.string().trim().min(1);

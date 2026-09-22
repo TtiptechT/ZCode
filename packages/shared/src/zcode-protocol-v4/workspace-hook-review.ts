@@ -119,6 +119,7 @@ export const workspaceHookReviewRequestPayloadSchema = z
             "PostToolUse",
             "PostToolUseFailure",
             "Stop",
+            "PreCompact",
           ]),
           matcher: z.string().optional(),
           type: z.enum(["command", "process"]),
